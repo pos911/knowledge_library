@@ -1,6 +1,7 @@
 feedparser
 beautifulsoup4
 requests
-google-generativeai
+google-genai
+pytz
 python-dotenv
 schedule
