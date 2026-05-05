@@ -8,6 +8,15 @@ on:
     - cron: '0 1 * * 5-6'
   # 수동 실행 버튼 활성화
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Execution mode: "run" (full pipeline) or "telegram-test" (Telegram test only)'
+        required: true
+        default: 'run'
+        type: choice
+        options:
+          - run
+          - telegram-test
 
 jobs:
   run-pipeline:
@@ -32,14 +41,20 @@ jobs:
       - name: 4. Run the Pipeline Script
         env:
           # ENV_JSON: GitHub Secrets에 등록된 단일 JSON 시크릿
-          # 포함 필수 키: GEMINI_API_KEY, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, GH_PAT
+          # 포함 필수 키: GEMINI_API_KEY, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, GH_PAT, NAVER_CLIENT_ID, NAVER_CLIENT_SECRET
           ENV_JSON: ${{ secrets.ENV_JSON }}
-          # GITHUB_ACTIONS=true 는 GitHub Actions runner에서 자동으로 주입됨
-          # main.py의 __main__ 블록이 이 값을 감지하여 1회 실행 후 종료함
         run: |
-          python main.py
+          if [ "${{ github.event.inputs.mode }}" == "telegram-test" ]; then
+            echo "Running Telegram test mode..."
+            python main.py --telegram-test
+          else
+            echo "Running full pipeline..."
+            python main.py
+          fi
 
       - name: 5. Commit & Push Updated DB
+        # 텔레그램 테스트 모드일 때는 DB 업데이트를 건너뜀
+        if: github.event.inputs.mode != 'telegram-test'
         env:
           GH_PAT: ${{ fromJson(secrets.ENV_JSON).GH_PAT }}
         run: |

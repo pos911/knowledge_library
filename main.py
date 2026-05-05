@@ -2,11 +2,13 @@ import time
 import schedule
 import os
 import sys
+import argparse
+from datetime import datetime
 from database import init_db, insert_post, get_pending_posts, update_post_summary, get_summarized_posts, mark_post_sent
 from scraper import scrape_recent_posts
 from summarizer import summarize_post
 from notifier import send_telegram_message, format_summary_message
-
+from config import TELEGRAM_CHAT_ID
 
 def run_pipeline():
     # GitHub Actions 등 일회성 실행 환경에서도 DB 초기화가 확실히 이루어지도록 파이프라인 시작 시 호출
@@ -54,13 +56,38 @@ def run_pipeline():
         print(f"[CRITICAL ERROR] Pipeline failed with exception: {e}", file=sys.stderr)
         raise
 
+def run_telegram_test():
+    """Telegram 발송 단독 테스트 실행"""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    target = TELEGRAM_CHAT_ID or "Unknown"
+    
+    test_message = (
+        f"<b>[Telegram 발송 테스트]</b>\n"
+        f"knowledge_library 채널 발송 테스트입니다.\n"
+        f"대상: {target}\n"
+        f"시간: {now} KST"
+    )
+    
+    print(f"Starting Telegram test to {target}...")
+    
+    if send_telegram_message(test_message):
+        print(f"SUCCESS: Telegram test message sent successfully to {target}")
+    else:
+        print(f"FAILED: Telegram test failed. Check the logs above for details.")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    print("Initializing Database...")
+    parser = argparse.ArgumentParser(description="Knowledge Library Pipeline")
+    parser.add_argument("--telegram-test", action="store_true", help="Run Telegram notification test only")
+    args = parser.parse_args()
+
     init_db()
 
+    if args.telegram_test:
+        run_telegram_test()
+        sys.exit(0)
+
     # GitHub Actions 등 CI 환경에서는 스케줄러를 돌리지 않고 즉시 1회 실행 후 종료
-    # GITHUB_ACTIONS 환경변수는 GitHub Actions runner에서 자동으로 "true"로 주입됨
     if os.getenv("GITHUB_ACTIONS") == "true":
         print("CI Environment detected. Running pipeline once and exiting...")
         try:

@@ -6,14 +6,18 @@ def summarize_post(title, content):
     """
     Gemini API를 호출하여 블로그 본문을 요약한다.
     """
+    if not content or len(content.strip()) < 10:
+        print(f"Skipping summary for '{title}': Content is too short or empty.")
+        return "요약할 본문 내용이 부족합니다."
+
     if not GEMINI_API_KEY or GEMINI_API_KEY == 'your_gemini_api_key_here':
         print("Warning: GEMINI_API_KEY is not set.")
         return "Gemini API 키가 설정되지 않았습니다."
         
     client = genai.Client(api_key=GEMINI_API_KEY)
     
-    # 사용할 모델 설정
-    MODEL_ID = 'gemini-2.5-flash'
+    # 사용할 모델 설정 (gemini-2.5-flash -> gemini-2.0-flash 로 수정)
+    MODEL_ID = 'gemini-2.0-flash'
     
     prompt = f"""
 당신은 전문적인 금융/투자 애널리스트입니다.

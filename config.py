@@ -26,6 +26,13 @@ TELEGRAM_BOT_TOKEN = get_config_value("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = get_config_value("TELEGRAM_CHAT_ID")
 DB_PATH = get_config_value("DB_PATH", "knowledge.db")
 
+# Telegram 설정 검증
+if not TELEGRAM_BOT_TOKEN:
+    print("[WARNING] TELEGRAM_TOKEN is not set.")
+if not TELEGRAM_CHAT_ID:
+    print("[WARNING] TELEGRAM_CHAT_ID is not set.")
+else:
+    print(f"Configured Telegram target: {TELEGRAM_CHAT_ID}")
 
 # 기타 설정
 BLOGS_FILE_PATH = "blogs.txt"
