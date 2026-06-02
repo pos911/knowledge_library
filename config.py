@@ -22,6 +22,7 @@ def get_config_value(key, default=None):
     return config.get(key) or os.environ.get(key, default)
 
 GEMINI_API_KEY = get_config_value("GEMINI_API_KEY")
+GEMINI_MODEL = get_config_value("GEMINI_MODEL", "gemini-2.5-flash")
 TELEGRAM_BOT_TOKEN = get_config_value("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = get_config_value("TELEGRAM_CHAT_ID")
 DB_PATH = get_config_value("DB_PATH", "knowledge.db")
