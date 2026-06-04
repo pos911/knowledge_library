@@ -1,6 +1,12 @@
-import os
 from google import genai
-from config import GEMINI_API_KEY
+from config import GEMINI_API_KEY, GEMINI_MODEL
+
+
+FALLBACK_MODELS = (
+    GEMINI_MODEL,
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+)
 
 def summarize_post(title, content):
     """
@@ -15,9 +21,6 @@ def summarize_post(title, content):
         return "Gemini API 키가 설정되지 않았습니다."
         
     client = genai.Client(api_key=GEMINI_API_KEY)
-    
-    # 사용할 모델 설정 (gemini-2.5-flash -> gemini-2.0-flash 로 수정)
-    MODEL_ID = 'gemini-2.0-flash'
     
     prompt = f"""
 당신은 전문적인 금융/투자 애널리스트입니다.
@@ -45,12 +48,27 @@ def summarize_post(title, content):
 리스크 요인: [내용]
 """
 
-    try:
-        response = client.models.generate_content(
-            model=MODEL_ID,
-            contents=prompt,
-        )
-        return response.text.strip()
-    except Exception as e:
-        print(f"Error in Gemini summarization: {e}")
-        return f"요약 중 에러 발생: {e}"
+    attempted_models = []
+    last_error = None
+
+    for model_id in dict.fromkeys(FALLBACK_MODELS):
+        attempted_models.append(model_id)
+        try:
+            response = client.models.generate_content(
+                model=model_id,
+                contents=prompt,
+            )
+            print(f"Gemini summarization succeeded with model: {model_id}")
+            return response.text.strip()
+        except Exception as e:
+            last_error = e
+            error_text = str(e)
+            print(f"Error in Gemini summarization with {model_id}: {error_text}")
+            if "404" not in error_text and "NOT_FOUND" not in error_text:
+                break
+
+    return (
+        "요약 중 에러 발생: "
+        f"{last_error} "
+        f"(시도한 모델: {', '.join(attempted_models)})"
+    )

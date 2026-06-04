@@ -16,6 +16,7 @@ Telegram 채널로 메시지를 발송하려면 다음 설정을 확인하세요
 - **환경 변수**:
   - `TELEGRAM_TOKEN`: Telegram Bot API 토큰
   - `TELEGRAM_CHAT_ID`: 발송 대상 ID 또는 username
+  - `GEMINI_MODEL`: 선택 사항. 기본값은 `gemini-2.5-flash`
 
 ### Telegram 발송 테스트
 
@@ -56,6 +57,7 @@ GitHub Actions에서 `ENV_JSON`을 사용하는 경우 다음 키가 포함되�
   "TELEGRAM_TOKEN": "...",
   "TELEGRAM_CHAT_ID": "@invest_blog_kr",
   "GEMINI_API_KEY": "...",
+  "GEMINI_MODEL": "gemini-2.5-flash",
   "NAVER_CLIENT_ID": "...",
   "NAVER_CLIENT_SECRET": "...",
   "DB_PATH": "knowledge.db",
