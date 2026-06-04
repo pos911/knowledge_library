@@ -1,6 +1,6 @@
 import os
 from google import genai
-from config import GEMINI_API_KEY
+from config import GEMINI_API_KEY, GEMINI_MODEL
 
 def summarize_post(title, content):
     """
@@ -17,7 +17,7 @@ def summarize_post(title, content):
     client = genai.Client(api_key=GEMINI_API_KEY)
     
     # 사용할 모델 설정 (gemini-2.5-flash -> gemini-2.0-flash 로 수정)
-    MODEL_ID = 'gemini-2.0-flash'
+    model_id = GEMINI_MODEL or "gemini-2.5-flash"
     
     prompt = f"""
 당신은 전문적인 금융/투자 애널리스트입니다.
@@ -47,7 +47,7 @@ def summarize_post(title, content):
 
     try:
         response = client.models.generate_content(
-            model=MODEL_ID,
+            model=model_id,
             contents=prompt,
         )
         return response.text.strip()
