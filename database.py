@@ -87,6 +87,22 @@ def get_summarized_posts():
     return posts
 
 
+def get_posts_by_links(links):
+    if not links:
+        return []
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    placeholders = ",".join("?" for _ in links)
+    cursor.execute(
+        f"SELECT * FROM posts WHERE link IN ({placeholders})",
+        tuple(links)
+    )
+    posts_by_link = {row["link"]: dict(row) for row in cursor.fetchall()}
+    conn.close()
+    return [posts_by_link[link] for link in links if link in posts_by_link]
+
+
 def mark_post_sent(post_id):
     conn = get_db_connection()
     cursor = conn.cursor()

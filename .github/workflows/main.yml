@@ -10,13 +10,17 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Execution mode: "run" (full pipeline) or "telegram-test" (Telegram test only)'
+        description: 'Execution mode'
         required: true
         default: 'run'
         type: choice
         options:
           - run
+          - latest-10
           - telegram-test
+
+permissions:
+  contents: write
 
 jobs:
   run-pipeline:
@@ -47,6 +51,9 @@ jobs:
           if [ "${{ github.event.inputs.mode }}" == "telegram-test" ]; then
             echo "Running Telegram test mode..."
             python main.py --telegram-test
+          elif [ "${{ github.event.inputs.mode }}" == "latest-10" ]; then
+            echo "Running latest 10 posts mode..."
+            python main.py --latest-limit 10
           else
             echo "Running full pipeline..."
             python main.py
@@ -55,8 +62,6 @@ jobs:
       - name: 5. Commit & Push Updated DB
         # 텔레그램 테스트 모드일 때는 DB 업데이트를 건너뜀
         if: github.event.inputs.mode != 'telegram-test'
-        env:
-          GH_PAT: ${{ fromJson(secrets.ENV_JSON).GH_PAT }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -65,7 +70,7 @@ jobs:
           # 변경사항이 있을 경우에만 커밋 및 푸시
           if ! git diff-index --quiet HEAD; then
             git commit -m "Auto-update DB after daily summary run [skip ci]"
-            git push https://$GH_PAT@github.com/${{ github.repository }}.git HEAD:main
+            git push origin HEAD:main
           else
             echo "No database changes to commit."
           fi

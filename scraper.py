@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import datetime
 from config import BLOGS_FILE_PATH
 
+
 def get_blog_urls():
     urls = []
     try:
@@ -126,3 +127,48 @@ def scrape_recent_posts():
                 print(f"Error parsing date for {entry.link}: {e}")
                 
     return recent_posts
+
+
+def scrape_latest_posts(limit=10):
+    """
+    모든 RSS 항목을 게시 시각순으로 정렬한 뒤 최신 항목만 본문까지 수집한다.
+    """
+    candidates = []
+    seen_links = set()
+
+    for url in get_blog_urls():
+        naver_id = extract_naver_id(url)
+        if not naver_id:
+            continue
+
+        print(f"Fetching RSS for: {naver_id}")
+        feed = fetch_rss(naver_id)
+
+        for entry in feed.entries:
+            try:
+                import email.utils
+
+                parsed_date = email.utils.parsedate_to_datetime(entry.published)
+                link = entry.link
+                if link in seen_links:
+                    continue
+
+                seen_links.add(link)
+                candidates.append({
+                    'title': entry.title,
+                    'link': link,
+                    'published_date': parsed_date.strftime("%Y-%m-%d %H:%M:%S"),
+                    '_published_at': parsed_date,
+                })
+            except Exception as e:
+                print(f"Error parsing date for {getattr(entry, 'link', 'unknown')}: {e}")
+
+    candidates.sort(key=lambda post: post['_published_at'], reverse=True)
+    selected_posts = candidates[:limit]
+
+    for post in selected_posts:
+        print(f"Scraping selected post: {post['title']}")
+        post['content'] = scrape_naver_blog_content(post['link'])
+        del post['_published_at']
+
+    return selected_posts

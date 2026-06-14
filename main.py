@@ -4,11 +4,20 @@ import os
 import sys
 import argparse
 from datetime import datetime
-from database import init_db, insert_post, get_pending_posts, update_post_summary, get_summarized_posts, mark_post_sent
-from scraper import scrape_recent_posts
+from database import (
+    init_db,
+    insert_post,
+    get_pending_posts,
+    update_post_summary,
+    get_summarized_posts,
+    get_posts_by_links,
+    mark_post_sent,
+)
+from scraper import scrape_recent_posts, scrape_latest_posts
 from summarizer import summarize_post
 from notifier import send_telegram_message, format_summary_message
 from config import TELEGRAM_CHAT_ID
+
 
 def run_pipeline():
     # GitHub Actions 등 일회성 실행 환경에서도 DB 초기화가 확실히 이루어지도록 파이프라인 시작 시 호출
@@ -56,6 +65,64 @@ def run_pipeline():
         print(f"[CRITICAL ERROR] Pipeline failed with exception: {e}", file=sys.stderr)
         raise
 
+
+def run_latest_pipeline(limit):
+    """전체 RSS에서 가장 최근 글만 골라 요약하고 미발송 항목을 전송한다."""
+    init_db()
+    print(f"--- Latest {limit} Pipeline Started ---")
+
+    latest_posts = scrape_latest_posts(limit)
+    if len(latest_posts) != limit:
+        raise RuntimeError(f"Expected {limit} latest posts, found {len(latest_posts)}.")
+
+    for post in latest_posts:
+        insert_post(
+            post['title'],
+            post['link'],
+            post['published_date'],
+            post['content'],
+        )
+
+    selected_posts = get_posts_by_links([post['link'] for post in latest_posts])
+    if len(selected_posts) != limit:
+        raise RuntimeError(f"Expected {limit} database posts, found {len(selected_posts)}.")
+
+    for post in selected_posts:
+        if post['status'] != 'pending':
+            continue
+
+        print(f"Summarizing: {post['title']}")
+        summary = summarize_post(post['title'], post['content'])
+        if (
+            not summary
+            or summary.startswith("요약 중 에러 발생:")
+            or summary in (
+                "Gemini API 키가 설정되지 않았습니다.",
+                "요약할 본문 내용이 부족합니다.",
+            )
+        ):
+            raise RuntimeError(f"Summarization failed for '{post['title']}': {summary}")
+        update_post_summary(post['id'], summary)
+
+    selected_posts = get_posts_by_links([post['link'] for post in latest_posts])
+    posts_to_send = [
+        post for post in selected_posts
+        if post['status'] == 'summarized'
+    ]
+
+    sent_count = 0
+    for post in reversed(posts_to_send):
+        print(f"Sending: {post['title']}")
+        if not send_telegram_message(format_summary_message(post)):
+            raise RuntimeError(f"Telegram send failed for '{post['title']}'.")
+        mark_post_sent(post['id'])
+        sent_count += 1
+        time.sleep(1)
+
+    print(f"Sent {sent_count} of the latest {limit} posts.")
+    print(f"--- Latest {limit} Pipeline Ended ---")
+
+
 def run_telegram_test():
     """Telegram 발송 단독 테스트 실행"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -79,12 +146,21 @@ def run_telegram_test():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Knowledge Library Pipeline")
     parser.add_argument("--telegram-test", action="store_true", help="Run Telegram notification test only")
+    parser.add_argument(
+        "--latest-limit",
+        type=int,
+        help="Process and send only the newest N RSS posts",
+    )
     args = parser.parse_args()
 
     init_db()
 
     if args.telegram_test:
         run_telegram_test()
+        sys.exit(0)
+
+    if args.latest_limit:
+        run_latest_pipeline(args.latest_limit)
         sys.exit(0)
 
     # GitHub Actions 등 CI 환경에서는 스케줄러를 돌리지 않고 즉시 1회 실행 후 종료
