@@ -1,12 +1,8 @@
 name: Daily AI Investment Summary
 
+# Gemini API billing maintenance: scheduled runs paused until manually restored.
 on:
-  schedule:
-    # 평일(Mon-Fri) 07:00 KST = 22:00 UTC (전날)
-    - cron: '0 22 * * 0-4'
-    # 주말(Sat-Sun) 10:00 KST = 01:00 UTC
-    - cron: '0 1 * * 5-6'
-  # 수동 실행 버튼 활성화
+  # 정기 실행 일시 중단. 결제 문제 해결 및 발송 검증 후 schedule 복구.
   workflow_dispatch:
     inputs:
       mode:
